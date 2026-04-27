@@ -1,0 +1,11 @@
+services:
+  hongfu:
+    image: ${IMAGE_REF}
+    container_name: ${CONTAINER_NAME:-hongfu}
+    restart: unless-stopped
+    ports:
+      - "${HTTP_BIND:-0.0.0.0}:${HTTP_PORT:-80}:80"
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+    volumes:
+      - ${HF_ENV_FILE:-./data/hongfu.env}:/app/.env
