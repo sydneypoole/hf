@@ -1,0 +1,65 @@
+services:
+  hongfu:
+    image: ${IMAGE_REF}
+    container_name: ${CONTAINER_NAME:-hongfu}
+    restart: unless-stopped
+    depends_on:
+      - hongfu-redis
+    ports:
+      - "${HTTP_BIND:-0.0.0.0}:${HTTP_PORT:-80}:80"
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://hongfu-redis:6379/0}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-}
+      CRAWLER_BEAT_INTERVAL_SECONDS: ${CRAWLER_BEAT_INTERVAL_SECONDS:-60}
+    volumes:
+      - ${HF_ENV_FILE:-./data/hongfu.env}:/app/.env
+
+  hongfu-celery-worker:
+    image: ${IMAGE_REF}
+    container_name: ${CONTAINER_NAME:-hongfu}-celery-worker
+    restart: unless-stopped
+    depends_on:
+      - hongfu-redis
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://hongfu-redis:6379/0}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-}
+      CRAWLER_BEAT_INTERVAL_SECONDS: ${CRAWLER_BEAT_INTERVAL_SECONDS:-60}
+    volumes:
+      - ${HF_ENV_FILE:-./data/hongfu.env}:/app/.env
+    command:
+      - celery
+      - -A
+      - backend.celery_app:celery_app
+      - worker
+      - --loglevel=INFO
+      - --queues=crawler
+      - --concurrency=${CELERY_CRAWLER_CONCURRENCY:-1}
+      - --prefetch-multiplier=1
+
+  hongfu-celery-beat:
+    image: ${IMAGE_REF}
+    container_name: ${CONTAINER_NAME:-hongfu}-celery-beat
+    restart: unless-stopped
+    depends_on:
+      - hongfu-redis
+      - hongfu-celery-worker
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://hongfu-redis:6379/0}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-}
+      CRAWLER_BEAT_INTERVAL_SECONDS: ${CRAWLER_BEAT_INTERVAL_SECONDS:-60}
+    volumes:
+      - ${HF_ENV_FILE:-./data/hongfu.env}:/app/.env
+    command:
+      - celery
+      - -A
+      - backend.celery_app:celery_app
+      - beat
+      - --loglevel=INFO
+
+  hongfu-redis:
+    image: redis:7-alpine
+    container_name: ${CONTAINER_NAME:-hongfu}-redis
+    restart: unless-stopped
