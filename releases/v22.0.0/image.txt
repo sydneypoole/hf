@@ -1,0 +1,1 @@
+ghcr.io/sydneypoole/hf:v22.0.0
